@@ -89,7 +89,7 @@ android {
     splits {
         abi {
             reset()
-            enable true
+            enable gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
             universalApk false
             include "arm64-v8a", "armeabi-v7a"
         }

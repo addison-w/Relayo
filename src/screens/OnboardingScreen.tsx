@@ -74,26 +74,6 @@ const INITIAL_STEPS: PermissionStep[] = [
     accentColor: 'cyan',
     type: 'special',
   },
-  {
-    id: 'autostart',
-    number: '05',
-    title: 'ENABLE_AUTOSTART',
-    description: 'Initialize on system boot',
-    module: 'android.permission.RECEIVE_BOOT_COMPLETED',
-    status: 'granted',
-    accentColor: 'green',
-    type: 'install',
-  },
-  {
-    id: 'fg_svc',
-    number: '06',
-    title: 'FOREGROUND_SVC',
-    description: 'Persistent monitoring service',
-    module: 'android.permission.FOREGROUND_SERVICE',
-    status: 'granted',
-    accentColor: 'green',
-    type: 'install',
-  },
 ];
 
 const accentColorMap = {
