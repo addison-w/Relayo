@@ -56,6 +56,33 @@ object SmtpSender {
         }
     }
 
+
+    fun testAuth(config: SmtpConfig): SmtpResult {
+        return try {
+            val props = buildProperties(config)
+            val session = Session.getInstance(props)
+            val protocol = if (config.useSsl) "smtps" else "smtp"
+            val transport = session.getTransport(protocol)
+            transport.connect(config.host, config.port, config.username, config.password)
+            transport.close()
+            SmtpResult.Success
+        } catch (e: AuthenticationFailedException) {
+            SmtpResult.Failure("auth_failed", e.message ?: "Authentication failed")
+        } catch (e: MessagingException) {
+            val cause = e.cause
+            when {
+                cause is SocketTimeoutException -> SmtpResult.Failure("timeout", e.message ?: "Timeout")
+                e.message?.contains("TLS") == true || e.message?.contains("SSL") == true ->
+                    SmtpResult.Failure("tls_error", e.message ?: "TLS error")
+                e.message?.contains("connect") == true || e.message?.contains("network") == true ->
+                    SmtpResult.Failure("network_error", e.message ?: "Network error")
+                else -> SmtpResult.Failure("unknown", e.message ?: "Unknown error")
+            }
+        } catch (e: Exception) {
+            SmtpResult.Failure("unknown", e.message ?: "Unknown error")
+        }
+    }
+
     private fun buildProperties(config: SmtpConfig): Properties = Properties().apply {
         if (config.useSsl) {
             put("mail.smtps.host", config.host)

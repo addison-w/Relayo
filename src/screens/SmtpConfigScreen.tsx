@@ -138,20 +138,22 @@ const SmtpConfigScreen: React.FC = () => {
   };
 
   const handleTest = async () => {
-    if (!canSave) {
-      setTouched({
-        host: true, port: true, username: true, password: true,
-        fromEmail: true, toEmail: true,
-      });
-      await handleSave();
-    }
     setTesting(true);
     try {
-      const success = await SmtpModule.sendTestEmail();
+      const success = await SmtpModule.testConnection({
+        host,
+        port: parseInt(port, 10) || 0,
+        username,
+        password,
+        fromEmail,
+        toEmail,
+        useSsl,
+        useStartTls,
+      });
       if (success) {
-        Alert.alert('TEST_PASS', 'Test email sent successfully.');
+        Alert.alert('TEST_PASS', 'SMTP connection authenticated successfully.');
       } else {
-        Alert.alert('TEST_FAIL', 'Test email returned false.');
+        Alert.alert('TEST_FAIL', 'Connection test returned false.');
       }
     } catch (err: unknown) {
       const message =

@@ -26,6 +26,7 @@ interface SmtpModuleInterface {
   saveConfig(config: SmtpConfigInput): Promise<boolean>;
   loadConfig(): Promise<SmtpConfigOutput | null>;
   sendTestEmail(): Promise<boolean>;
+  testConnection(config: SmtpConfigInput): Promise<boolean>;
   sendEmail(subject: string, body: string): Promise<boolean>;
 }
 
@@ -41,6 +42,9 @@ export default {
   sendTestEmail: (): Promise<boolean> =>
     SmtpModule.sendTestEmail(),
 
+
+  testConnection: (config: SmtpConfigInput): Promise<boolean> =>
+    SmtpModule.testConnection(config),
   sendEmail: (subject: string, body: string): Promise<boolean> =>
     SmtpModule.sendEmail(subject, body),
 };

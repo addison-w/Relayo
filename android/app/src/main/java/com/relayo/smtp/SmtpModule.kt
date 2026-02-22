@@ -84,6 +84,32 @@ class SmtpModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
+
+    @ReactMethod
+    fun testConnection(map: ReadableMap, promise: Promise) {
+        executor.execute {
+            try {
+                val config = SmtpConfig(
+                    host = map.getString("host") ?: "",
+                    port = if (map.hasKey("port")) map.getInt("port") else 465,
+                    username = map.getString("username") ?: "",
+                    password = map.getString("password") ?: "",
+                    fromEmail = map.getString("fromEmail") ?: "",
+                    toEmail = map.getString("toEmail") ?: "",
+                    useSsl = !map.hasKey("useSsl") || map.getBoolean("useSsl"),
+                    useStartTls = map.hasKey("useStartTls") && map.getBoolean("useStartTls")
+                )
+                val result = SmtpSender.testAuth(config)
+                when (result) {
+                    is SmtpResult.Success -> promise.resolve(true)
+                    is SmtpResult.Failure -> promise.reject(result.errorCode, result.message)
+                }
+            } catch (e: Exception) {
+                promise.reject("unknown", e.message)
+            }
+        }
+    }
+
     @ReactMethod
     fun sendEmail(subject: String, body: String, promise: Promise) {
         executor.execute {
