@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -12,39 +12,157 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import TerminalCard from '../components/TerminalCard';
 import DiagnosticsTable from '../components/DiagnosticsTable';
 import ScanlineOverlay from '../components/ScanlineOverlay';
+import ServiceModule from '../native/NativeServiceModule';
+import PermissionModule from '../native/NativePermissionModule';
+import type {AppStatus} from '../native/NativeServiceModule';
 import type {DiagnosticModule} from '../types';
 import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
-const MOCK_DIAGNOSTICS: DiagnosticModule[] = [
+const POLL_INTERVAL = 5000;
+
+const buildDiagnostics = (perms: {
+  RECEIVE_SMS: boolean;
+  READ_SMS: boolean;
+  READ_PHONE_STATE: boolean;
+  POST_NOTIFICATIONS?: boolean;
+}): DiagnosticModule[] => [
   {
     id: 'sms',
     name: 'SMS_ACCESS',
-    description: 'Broadcast receiver bound',
+    description: perms.READ_SMS
+      ? 'Broadcast receiver bound'
+      : 'Permission not granted',
     icon: '📨',
-    status: 'ready',
+    status: perms.READ_SMS && perms.RECEIVE_SMS ? 'ready' : 'error',
   },
   {
-    id: 'battery',
-    name: 'BATTERY_OP',
-    description: 'Optimization bypassed',
-    icon: '🔋',
-    status: 'ready',
+    id: 'phone',
+    name: 'PHONE_STATE',
+    description: perms.READ_PHONE_STATE
+      ? 'Telephony access granted'
+      : 'Permission not granted',
+    icon: '📱',
+    status: perms.READ_PHONE_STATE ? 'ready' : 'warning',
   },
   {
-    id: 'net',
-    name: 'NET_SOCKET',
-    description: 'SMTP connection pool active',
-    icon: '🌐',
-    status: 'ready',
+    id: 'notify',
+    name: 'NOTIFICATIONS',
+    description:
+      perms.POST_NOTIFICATIONS !== false
+        ? 'Notification channel active'
+        : 'Permission not granted',
+    icon: '🔔',
+    status: perms.POST_NOTIFICATIONS !== false ? 'ready' : 'warning',
   },
 ];
 
+const DEFAULT_DIAGNOSTICS: DiagnosticModule[] = [
+  {
+    id: 'sms',
+    name: 'SMS_ACCESS',
+    description: 'Checking...',
+    icon: '📨',
+    status: 'unknown',
+  },
+  {
+    id: 'phone',
+    name: 'PHONE_STATE',
+    description: 'Checking...',
+    icon: '📱',
+    status: 'unknown',
+  },
+  {
+    id: 'notify',
+    name: 'NOTIFICATIONS',
+    description: 'Checking...',
+    icon: '🔔',
+    status: 'unknown',
+  },
+];
+
+const formatUptime = (startMs: number): string => {
+  const elapsed = Date.now() - startMs;
+  if (elapsed < 0) {
+    return '00h 00m';
+  }
+  const hours = Math.floor(elapsed / 3600000);
+  const minutes = Math.floor((elapsed % 3600000) / 60000);
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+};
+
+const formatTimestamp = (ms: number): string => {
+  const d = new Date(ms);
+  return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+};
+
 const DashboardScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const [isActive, setIsActive] = useState(true);
+  const [isActive, setIsActive] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [lastStatus, setLastStatus] = useState<AppStatus | null>(null);
+  const [outboxCount, setOutboxCount] = useState(0);
+  const [diagnostics, setDiagnostics] =
+    useState<DiagnosticModule[]>(DEFAULT_DIAGNOSTICS);
+  const [serviceStartTime, setServiceStartTime] = useState<number | null>(null);
+  const [uptimeStr, setUptimeStr] = useState('00h 00m');
+
   const cursorOpacity = useRef(new Animated.Value(1)).current;
   const ringRotation = useRef(new Animated.Value(0)).current;
   const pulseOpacity = useRef(new Animated.Value(1)).current;
+
+  const pollData = useCallback(async () => {
+    try {
+      const [running, status, count] = await Promise.all([
+        ServiceModule.isServiceRunning(),
+        ServiceModule.getLastStatus(),
+        ServiceModule.getOutboxCount(),
+      ]);
+      setIsActive(running);
+      setLastStatus(status);
+      setOutboxCount(count);
+      if (running && serviceStartTime === null) {
+        setServiceStartTime(Date.now());
+      } else if (!running) {
+        setServiceStartTime(null);
+      }
+    } catch {
+      setIsActive(false);
+    }
+  }, [serviceStartTime]);
+
+  const loadDiagnostics = useCallback(async () => {
+    try {
+      const perms = await PermissionModule.checkAllPermissions();
+      setDiagnostics(buildDiagnostics(perms));
+    } catch {
+      setDiagnostics(
+        DEFAULT_DIAGNOSTICS.map(d => ({
+          ...d,
+          description: 'Check failed',
+          status: 'error' as const,
+        })),
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    pollData();
+    loadDiagnostics();
+    const interval = setInterval(pollData, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [pollData, loadDiagnostics]);
+
+  useEffect(() => {
+    if (!serviceStartTime) {
+      setUptimeStr('00h 00m');
+      return;
+    }
+    setUptimeStr(formatUptime(serviceStartTime));
+    const interval = setInterval(() => {
+      setUptimeStr(formatUptime(serviceStartTime));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [serviceStartTime]);
 
   useEffect(() => {
     const blink = Animated.loop(
@@ -97,6 +215,25 @@ const DashboardScreen: React.FC = () => {
     return () => pulse.stop();
   }, [pulseOpacity]);
 
+  const handleToggleService = async () => {
+    setToggling(true);
+    try {
+      if (isActive) {
+        await ServiceModule.stopService();
+        setIsActive(false);
+        setServiceStartTime(null);
+      } else {
+        await ServiceModule.startService();
+        setIsActive(true);
+        setServiceStartTime(Date.now());
+      }
+    } catch {
+      // Toggle failed — next poll will correct state
+    } finally {
+      setToggling(false);
+    }
+  };
+
   const spin = ringRotation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -108,6 +245,16 @@ const DashboardScreen: React.FC = () => {
   });
 
   const statusColor = isActive ? colors.green : colors.textMuted;
+
+  const lastResultLabel =
+    lastStatus?.lastResult === 'success'
+      ? 'SEND_SUCCESS'
+      : lastStatus?.lastResult === 'failed'
+        ? 'SEND_FAILED'
+        : 'NO_DATA';
+
+  const lastResultColor =
+    lastStatus?.lastResult === 'success' ? colors.green : colors.red;
 
   return (
     <View style={[styles.screen, {paddingTop: insets.top}]}>
@@ -159,7 +306,8 @@ const DashboardScreen: React.FC = () => {
 
             <TouchableOpacity
               style={[styles.powerButton, {borderColor: statusColor}]}
-              onPress={() => setIsActive(prev => !prev)}
+              onPress={handleToggleService}
+              disabled={toggling}
               activeOpacity={0.8}>
               <Animated.View
                 style={[
@@ -188,12 +336,13 @@ const DashboardScreen: React.FC = () => {
           </View>
 
           <Text style={styles.uptimeText}>
-            UPTIME: {isActive ? '42h 12m' : '00h 00m'}
+            UPTIME: {uptimeStr}
+            {outboxCount > 0 ? `  |  OUTBOX: ${outboxCount}` : ''}
           </Text>
         </View>
 
         <TerminalCard accentColor="cyan" title="DIAGNOSTICS" subtitle="SYSTEM_MODULE_STATUS">
-          <DiagnosticsTable modules={MOCK_DIAGNOSTICS} />
+          <DiagnosticsTable modules={diagnostics} />
         </TerminalCard>
 
         <View style={styles.sectionSpacer} />
@@ -204,14 +353,10 @@ const DashboardScreen: React.FC = () => {
               <Text style={styles.logPrompt}>$ </Text>
               <Text style={styles.logCmd}>timestamp --utc</Text>
             </View>
-            <Text style={styles.logOutputGreen}>2026-02-22T14:32:07Z</Text>
-
-            <View style={[styles.logLine, styles.logLineSpaced]}>
-              <Text style={styles.logPrompt}>$ </Text>
-              <Text style={styles.logCmd}>cat payload.txt</Text>
-            </View>
-            <Text style={styles.logOutputCyan}>
-              &quot;Your verification code is 847291...&quot;
+            <Text style={styles.logOutputGreen}>
+              {lastStatus?.lastAttemptAt
+                ? formatTimestamp(lastStatus.lastAttemptAt)
+                : 'N/A'}
             </Text>
 
             <View style={[styles.logLine, styles.logLineSpaced]}>
@@ -222,8 +367,26 @@ const DashboardScreen: React.FC = () => {
               <Animated.View
                 style={[styles.pulsingDot, {opacity: pulseOpacity}]}
               />
-              <Text style={styles.logSuccess}>{'>>'} SEND_SUCCESS</Text>
+              <Text
+                style={[
+                  styles.logSuccess,
+                  {color: lastStatus ? lastResultColor : colors.textDim},
+                ]}>
+                {'>>'} {lastResultLabel}
+              </Text>
             </View>
+
+            {lastStatus?.lastErrorShort && (
+              <>
+                <View style={[styles.logLine, styles.logLineSpaced]}>
+                  <Text style={styles.logPrompt}>$ </Text>
+                  <Text style={styles.logCmd}>cat error.log</Text>
+                </View>
+                <Text style={styles.logOutputError}>
+                  {lastStatus.lastErrorShort}
+                </Text>
+              </>
+            )}
           </View>
         </TerminalCard>
       </ScrollView>
@@ -399,10 +562,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
     marginLeft: spacing.lg,
   },
-  logOutputCyan: {
+  logOutputError: {
     fontFamily: fontFamily.mono,
     fontSize: fontSize.body,
-    color: colors.cyan,
+    color: colors.red,
     marginTop: spacing.xxs,
     marginLeft: spacing.lg,
   },

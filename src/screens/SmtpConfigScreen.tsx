@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   StyleSheet,
   Switch,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {ConfigStackParamList} from '../navigation/types';
+import SmtpModule from '../native/NativeSmtpModule';
 import TerminalInput from '../components/TerminalInput';
 import TerminalButton from '../components/TerminalButton';
 import ScanlineOverlay from '../components/ScanlineOverlay';
@@ -31,22 +33,81 @@ const SmtpConfigScreen: React.FC = () => {
   const [useSsl, setUseSsl] = useState(false);
   const [useStartTls, setUseStartTls] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
-  const handleSave = () => {
-    console.log('[SMTP_CONFIG] SAVE_CONFIG', {
-      host,
-      port,
-      username,
-      fromEmail,
-      toEmail,
-      useSsl,
-      useStartTls,
-    });
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const config = await SmtpModule.loadConfig();
+        if (config) {
+          setHost(config.host);
+          setPort(String(config.port));
+          setUsername(config.username);
+          setFromEmail(config.fromEmail);
+          setToEmail(config.toEmail);
+          setUseSsl(config.useSsl);
+          setUseStartTls(config.useStartTls);
+        }
+      } catch {
+        Alert.alert('ERR_LOAD_CONFIG', 'Failed to load saved configuration.');
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+    load();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await SmtpModule.saveConfig({
+        host,
+        port: parseInt(port, 10) || 0,
+        username,
+        password,
+        fromEmail,
+        toEmail,
+        useSsl,
+        useStartTls,
+      });
+      Alert.alert('CONFIG_SAVED', 'SMTP configuration stored successfully.');
+    } catch {
+      Alert.alert('ERR_SAVE', 'Failed to save SMTP configuration.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleTest = () => {
-    console.log('[SMTP_CONFIG] TEST_SMTP', {host, port, username});
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const success = await SmtpModule.sendTestEmail();
+      if (success) {
+        Alert.alert('TEST_PASS', 'Test email sent successfully.');
+      } else {
+        Alert.alert('TEST_FAIL', 'Test email returned false.');
+      }
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Unknown SMTP error';
+      Alert.alert('TEST_FAIL', message);
+    } finally {
+      setTesting(false);
+    }
   };
+
+  if (loadingConfig) {
+    return (
+      <View style={[styles.screen, {paddingTop: insets.top}]}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>{'> Loading config...'}</Text>
+        </View>
+        <ScanlineOverlay />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, {paddingTop: insets.top}]}>
@@ -162,6 +223,7 @@ const SmtpConfigScreen: React.FC = () => {
             onPress={handleSave}
             variant="primary"
             accentColor="green"
+            loading={saving}
           />
           <View style={styles.footerSpacer} />
           <TerminalButton
@@ -169,6 +231,7 @@ const SmtpConfigScreen: React.FC = () => {
             onPress={handleTest}
             variant="secondary"
             accentColor="cyan"
+            loading={testing}
           />
         </View>
 
@@ -198,6 +261,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
     paddingBottom: spacing.massive,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontFamily: fontFamily.mono,
+    fontSize: fontSize.body,
+    color: colors.textDim,
   },
   headerRow: {
     flexDirection: 'row',

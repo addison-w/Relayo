@@ -1,10 +1,12 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -13,6 +15,8 @@ import TerminalInput from '../components/TerminalInput';
 import TerminalButton from '../components/TerminalButton';
 import StatusBadge from '../components/StatusBadge';
 import ScanlineOverlay from '../components/ScanlineOverlay';
+import SimModule from '../native/NativeSimModule';
+import type {SimInfo} from '../native/NativeSimModule';
 import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
 const SIGNAL_BARS = 4;
@@ -52,11 +56,70 @@ const sigStyles = StyleSheet.create({
 const SimManagementScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [manualNumber, setManualNumber] = useState('');
+  const [sims, setSims] = useState<SimInfo[]>([]);
+  const [manualNumbers, setManualNumbers] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = () => {
-    console.log('[SIM_CFG] EXECUTE_CONFIG_SAVE', {manualNumber});
+  useEffect(() => {
+    const loadSims = async () => {
+      try {
+        const simList = await SimModule.getSimInfo();
+        setSims(simList);
+        const initManual: Record<number, string> = {};
+        for (const sim of simList) {
+          initManual[sim.subscriptionId] = sim.manualNumber || '';
+        }
+        setManualNumbers(initManual);
+        setError(null);
+      } catch {
+        setError('Failed to read SIM data from TelephonyManager.');
+        setSims([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSims();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const promises = sims
+        .filter(sim => !sim.detectedNumber && manualNumbers[sim.subscriptionId])
+        .map(sim =>
+          SimModule.setManualNumber(
+            sim.subscriptionId,
+            manualNumbers[sim.subscriptionId],
+          ),
+        );
+      await Promise.all(promises);
+      Alert.alert('CONFIG_SAVED', 'SIM configuration stored successfully.');
+    } catch {
+      Alert.alert('ERR_SAVE', 'Failed to save SIM configuration.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const getSlotAccent = (index: number): 'green' | 'amber' | 'cyan' =>
+    index === 0 ? 'green' : 'amber';
+
+  const getSlotColor = (index: number) =>
+    index === 0 ? colors.green : colors.amber;
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, {paddingTop: insets.top}]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={colors.green} />
+          <Text style={styles.loadingText}>{'> Scanning SIM slots...'}</Text>
+        </View>
+        <ScanlineOverlay />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, {paddingTop: insets.top}]}>
@@ -89,61 +152,91 @@ const SimManagementScreen: React.FC = () => {
           </Text>
         </View>
 
-        <TerminalCard accentColor="green" title="SLOT_01" subtitle="PRIMARY_TRANSCEIVER">
-          <View style={styles.simHeader}>
-            <StatusBadge status="active" label="ACTIVE" />
-            <SignalIndicator level={3} color={colors.green} />
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{'> ERR: '}{error}</Text>
           </View>
+        )}
 
-          <View style={styles.simGrid}>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>CARRIER</Text>
-              <Text style={styles.simValue}>CARRIER_A</Text>
-            </View>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>MSISDN</Text>
-              <Text style={styles.simValueGreen}>+81 90-1234-5678</Text>
-            </View>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>ICCID</Text>
-              <Text style={styles.simValueMono}>8981100...</Text>
-            </View>
+        {sims.length === 0 && !error && (
+          <View style={styles.infoBanner}>
+            <Text style={styles.infoBannerTitle}>{'> '}NO_SIM_DETECTED</Text>
+            <Text style={styles.infoBannerDesc}>
+              No active SIM cards found. Insert a SIM and restart the app.
+            </Text>
           </View>
-        </TerminalCard>
+        )}
 
-        <View style={styles.cardSpacer} />
+        {sims.map((sim, index) => {
+          const hasNumber = !!sim.detectedNumber;
+          const accent = getSlotAccent(index);
+          const slotColor = getSlotColor(index);
+          const slotLabel = `SLOT_${String(sim.slotIndex + 1).padStart(2, '0')}`;
+          const subtitle =
+            index === 0 ? 'PRIMARY_TRANSCEIVER' : 'SECONDARY_TRANSCEIVER';
 
-        <TerminalCard accentColor="amber" title="SLOT_02" subtitle="SECONDARY_TRANSCEIVER">
-          <View style={styles.simHeader}>
-            <StatusBadge status="attention" label="ATTENTION" />
-            <SignalIndicator level={2} color={colors.amber} />
-          </View>
+          return (
+            <React.Fragment key={sim.subscriptionId}>
+              {index > 0 && <View style={styles.cardSpacer} />}
+              <TerminalCard accentColor={accent} title={slotLabel} subtitle={subtitle}>
+                <View style={styles.simHeader}>
+                  <StatusBadge
+                    status={sim.isActive ? (hasNumber ? 'active' : 'attention') : 'pending'}
+                    label={sim.isActive ? (hasNumber ? 'ACTIVE' : 'ATTENTION') : 'INACTIVE'}
+                  />
+                  <SignalIndicator
+                    level={sim.isActive ? (hasNumber ? 3 : 2) : 0}
+                    color={slotColor}
+                  />
+                </View>
 
-          <View style={styles.simGrid}>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>CARRIER</Text>
-              <Text style={styles.simValue}>CARRIER_B</Text>
-            </View>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>MSISDN</Text>
-              <Text style={styles.simValueAmber}>MSISDN_MISSING</Text>
-            </View>
-            <View style={styles.simRow}>
-              <Text style={styles.simLabel}>ICCID</Text>
-              <Text style={styles.simValueMono}>8981200...</Text>
-            </View>
-          </View>
+                <View style={styles.simGrid}>
+                  <View style={styles.simRow}>
+                    <Text style={styles.simLabel}>CARRIER</Text>
+                    <Text style={styles.simValue}>
+                      {sim.carrierName || 'UNKNOWN'}
+                    </Text>
+                  </View>
+                  <View style={styles.simRow}>
+                    <Text style={styles.simLabel}>MSISDN</Text>
+                    <Text
+                      style={[
+                        hasNumber ? styles.simValueGreen : styles.simValueAmber,
+                        !hasNumber && index > 0 && {color: colors.amber},
+                      ]}>
+                      {sim.detectedNumber || 'MSISDN_MISSING'}
+                    </Text>
+                  </View>
+                  <View style={styles.simRow}>
+                    <Text style={styles.simLabel}>ICCID</Text>
+                    <Text style={styles.simValueMono}>
+                      {sim.iccId
+                        ? `${sim.iccId.substring(0, 7)}...`
+                        : 'N/A'}
+                    </Text>
+                  </View>
+                </View>
 
-          <View style={styles.manualInput}>
-            <TerminalInput
-              label="MANUAL_OVERRIDE"
-              value={manualNumber}
-              onChangeText={setManualNumber}
-              placeholder="+XX XXX-XXXX-XXXX"
-              keyboardType="phone-pad"
-            />
-          </View>
-        </TerminalCard>
+                {!hasNumber && (
+                  <View style={styles.manualInput}>
+                    <TerminalInput
+                      label="MANUAL_OVERRIDE"
+                      value={manualNumbers[sim.subscriptionId] || ''}
+                      onChangeText={text =>
+                        setManualNumbers(prev => ({
+                          ...prev,
+                          [sim.subscriptionId]: text,
+                        }))
+                      }
+                      placeholder="+XX XXX-XXXX-XXXX"
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                )}
+              </TerminalCard>
+            </React.Fragment>
+          );
+        })}
 
         <View style={styles.cardSpacer} />
 
@@ -165,9 +258,10 @@ const SimManagementScreen: React.FC = () => {
             onPress={handleSave}
             variant="primary"
             accentColor="green"
+            loading={saving}
           />
           <Text style={styles.hashCheck}>
-            SHA-256 INTEGRITY CHECK: PENDING
+            SHA-256 INTEGRITY CHECK: {saving ? 'COMPUTING...' : 'PENDING'}
           </Text>
         </View>
       </ScrollView>
@@ -187,6 +281,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
     paddingBottom: spacing.massive,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontFamily: fontFamily.mono,
+    fontSize: fontSize.body,
+    color: colors.textDim,
   },
   headerRow: {
     flexDirection: 'row',
@@ -247,6 +352,19 @@ const styles = StyleSheet.create({
     fontSize: fontSize.label,
     color: colors.textDim,
     lineHeight: 16,
+  },
+  errorBanner: {
+    backgroundColor: colors.surface,
+    borderWidth: borderWidth.thin,
+    borderColor: colors.red,
+    borderRadius: 0,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  errorText: {
+    fontFamily: fontFamily.mono,
+    fontSize: fontSize.body,
+    color: colors.red,
   },
   simHeader: {
     flexDirection: 'row',

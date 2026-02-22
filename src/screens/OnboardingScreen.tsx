@@ -1,15 +1,18 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   Animated,
+  AppState,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../navigation/types';
 import type {PermissionStep} from '../types';
+import PermissionModule from '../native/NativePermissionModule';
+import type {PermissionStatus} from '../native/NativePermissionModule';
 import TerminalButton from '../components/TerminalButton';
 import StatusBadge from '../components/StatusBadge';
 import ScanlineOverlay from '../components/ScanlineOverlay';
@@ -33,7 +36,7 @@ const INITIAL_STEPS: PermissionStep[] = [
     title: 'PERMISSION_NOTIFY',
     description: 'Log output enabled',
     module: 'android.permission.POST_NOTIFICATIONS',
-    status: 'granted',
+    status: 'pending',
     accentColor: 'green',
   },
   {
@@ -74,6 +77,11 @@ const INITIAL_STEPS: PermissionStep[] = [
   },
 ];
 
+const PERMISSION_KEY_MAP: Record<string, keyof PermissionStatus> = {
+  sms_read: 'READ_SMS',
+  notify: 'POST_NOTIFICATIONS',
+};
+
 const accentColorMap = {
   green: colors.green,
   cyan: colors.cyan,
@@ -85,10 +93,46 @@ const OnboardingScreen: React.FC<Props> = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const cursorOpacity = useRef(new Animated.Value(1)).current;
   const [steps, setSteps] = useState<PermissionStep[]>(INITIAL_STEPS);
+  const [loading, setLoading] = useState(true);
 
   const grantedCount = steps.filter(s => s.status === 'granted').length;
   const allGranted = grantedCount === steps.length;
   const progressWidth = `${(grantedCount / steps.length) * 100}%` as const;
+
+  const checkPermissions = useCallback(async () => {
+    try {
+      const status = await PermissionModule.checkAllPermissions();
+      setSteps(prev =>
+        prev.map(step => {
+          const permKey = PERMISSION_KEY_MAP[step.id];
+          if (permKey && status[permKey] !== undefined) {
+            return {
+              ...step,
+              status: status[permKey] ? 'granted' : 'pending',
+            };
+          }
+          return step;
+        }),
+      );
+    } catch {
+      // Native module unavailable — keep steps as-is
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPermissions();
+  }, [checkPermissions]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        checkPermissions();
+      }
+    });
+    return () => sub.remove();
+  }, [checkPermissions]);
 
   useEffect(() => {
     const blink = Animated.loop(
@@ -109,10 +153,20 @@ const OnboardingScreen: React.FC<Props> = ({navigation}) => {
     return () => blink.stop();
   }, [cursorOpacity]);
 
-  const handleExecute = (stepId: string) => {
-    setSteps(prev =>
-      prev.map(s => (s.id === stepId ? {...s, status: 'granted' as const} : s)),
-    );
+  const handleExecute = async (stepId: string) => {
+    try {
+      if (stepId === 'battery') {
+        await PermissionModule.openBatteryOptimizationSettings();
+      } else {
+        await PermissionModule.openAppSettings();
+      }
+    } catch {
+      setSteps(prev =>
+        prev.map(s =>
+          s.id === stepId ? {...s, status: 'granted' as const} : s,
+        ),
+      );
+    }
   };
 
   const handleProceed = () => {
@@ -127,7 +181,10 @@ const OnboardingScreen: React.FC<Props> = ({navigation}) => {
         showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.versionString}>SYS_INIT_SEQ_V.1.0.4</Text>
-          <StatusBadge status="pending" label="PENDING" />
+          <StatusBadge
+            status={loading ? 'pending' : allGranted ? 'ready' : 'pending'}
+            label={loading ? 'SCANNING' : allGranted ? 'READY' : 'PENDING'}
+          />
         </View>
 
         <View style={styles.asciiContainer}>
