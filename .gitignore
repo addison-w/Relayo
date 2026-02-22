@@ -68,3 +68,4 @@ google-services.json
 # CMake build cache
 android/app/.cxx/
 .loki/
+.skill-archive/
