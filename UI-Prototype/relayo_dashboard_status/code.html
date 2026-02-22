@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Relayo System Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "term-bg": "#0d0e12",
+                        "term-card": "#15171e",
+                        "term-green": "#00ff41",
+                        "term-cyan": "#00f0ff",
+                        "term-dim": "#4d5b5b",
+                        "term-border": "#2c313a",
+                        "term-error": "#ff3333",
+                        "term-text": "#c9d1d9"
+                    },
+                    fontFamily: {
+                        "mono": ["'JetBrains Mono'", "monospace"],
+                        "display": ["'JetBrains Mono'", "monospace"]
+                    },
+                    boxShadow: {
+                        "neon": "0 0 5px rgba(0, 255, 65, 0.2), 0 0 10px rgba(0, 255, 65, 0.1)",
+                        "cyan-glow": "0 0 5px rgba(0, 240, 255, 0.2)"
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .blink-cursor::after {
+            content: '_';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d0e12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c313a;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff41;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-term-bg text-term-text font-mono min-h-screen flex flex-col relative overflow-hidden antialiased selection:bg-term-green selection:text-black">
+<div class="absolute inset-0 pointer-events-none scanline z-50 opacity-10"></div>
+<main class="relative z-10 flex-1 flex flex-col w-full max-w-md mx-auto h-full min-h-screen border-x border-term-border/30 bg-term-bg shadow-2xl">
+<header class="px-6 pt-12 pb-4 flex justify-between items-center border-b border-term-border">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-term-green text-2xl">terminal</span>
+<div>
+<h1 class="text-lg font-bold tracking-tight text-white uppercase">Relayo<span class="text-term-green">.sh</span></h1>
+<div class="text-[10px] text-term-dim uppercase tracking-widest">v2.4.1-stable</div>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center border border-term-border hover:border-term-cyan hover:text-term-cyan transition-colors group">
+<span class="material-symbols-outlined text-term-dim group-hover:text-term-cyan text-sm">settings_suggest</span>
+</button>
+</header>
+<div class="flex-1 overflow-y-auto px-5 py-6 space-y-8">
+<section class="flex flex-col items-center justify-center py-8 border-b border-term-border border-dashed">
+<div class="relative mb-6 group">
+<div class="w-32 h-32 rounded-full border border-term-green/30 flex items-center justify-center bg-term-card shadow-neon relative z-10">
+<span class="material-symbols-outlined text-term-green text-6xl drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]">power_settings_new</span>
+</div>
+<div class="absolute inset-0 -m-1 border border-term-green/20 rounded-full w-34 h-34 animate-[spin_8s_linear_infinite]"></div>
+<div class="absolute inset-0 -m-3 border border-dashed border-term-green/10 rounded-full w-38 h-38 animate-[spin_12s_linear_reverse_infinite]"></div>
+</div>
+<h2 class="text-xl font-bold text-term-green mb-2 tracking-widest blink-cursor">SYSTEM ACTIVE</h2>
+<p class="text-xs text-term-dim text-center max-w-[240px] font-light">
+                    &gt; Monitoring active. <br/>
+                    &gt; Forwarding protocol initialized.
+                </p>
+<div class="mt-6 flex items-center gap-3 bg-term-card/50 px-3 py-1 border border-term-border">
+<div class="w-2 h-2 bg-term-green animate-pulse"></div>
+<span class="text-xs font-mono text-term-green">UPTIME: 42h 12m</span>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-between mb-4 pl-1 border-l-2 border-term-cyan">
+<h3 class="text-xs font-bold text-term-cyan uppercase tracking-widest ml-2">Diagnostics</h3>
+<span class="text-[10px] text-term-dim font-mono">[CHECK_COMPLETE]</span>
+</div>
+<div class="bg-term-card border border-term-border overflow-hidden">
+<div class="grid grid-cols-1 divide-y divide-term-border">
+<div class="grid grid-cols-12 gap-2 p-2 bg-term-border/20 text-[10px] uppercase text-term-dim font-bold tracking-wider">
+<div class="col-span-8">Module</div>
+<div class="col-span-4 text-right">Status</div>
+</div>
+<div class="grid grid-cols-12 gap-2 p-3 items-center hover:bg-white/5 transition-colors">
+<div class="col-span-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-term-dim text-sm">sms</span>
+<div class="flex flex-col">
+<span class="text-xs text-white font-medium">SMS_ACCESS</span>
+<span class="text-[10px] text-term-dim">Manifest.permission.READ_SMS</span>
+</div>
+</div>
+<div class="col-span-4 text-right">
+<span class="text-xs font-bold text-term-green">[READY]</span>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-2 p-3 items-center hover:bg-white/5 transition-colors">
+<div class="col-span-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-term-dim text-sm">battery_charging_full</span>
+<div class="flex flex-col">
+<span class="text-xs text-white font-medium">BATTERY_OP</span>
+<span class="text-[10px] text-term-dim">PowerManager.WakeLock</span>
+</div>
+</div>
+<div class="col-span-4 text-right">
+<span class="text-xs font-bold text-term-green">[READY]</span>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-2 p-3 items-center hover:bg-white/5 transition-colors">
+<div class="col-span-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-term-dim text-sm">wifi</span>
+<div class="flex flex-col">
+<span class="text-xs text-white font-medium">NET_SOCKET</span>
+<span class="text-[10px] text-term-dim">TCP/IP Valid</span>
+</div>
+</div>
+<div class="col-span-4 text-right">
+<span class="text-xs font-bold text-term-cyan">[CONN]</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-between mb-4 pl-1 border-l-2 border-term-green">
+<h3 class="text-xs font-bold text-term-green uppercase tracking-widest ml-2">Last_Exec_Log</h3>
+</div>
+<div class="bg-black border border-term-border p-4 font-mono text-xs relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-1">
+<span class="text-[9px] text-term-dim">ID: #F9A2</span>
+</div>
+<div class="space-y-2 relative z-10">
+<div class="flex gap-2 text-term-dim">
+<span>$</span>
+<span class="text-white">timestamp --utc</span>
+</div>
+<div class="pl-4 text-term-green">
+                            &gt; 2023-10-27T10:42:15Z
+                        </div>
+<div class="flex gap-2 text-term-dim mt-3">
+<span>$</span>
+<span class="text-white">cat payload.txt | grep "status"</span>
+</div>
+<div class="pl-4 text-term-cyan">
+                            &gt; "Your verification code is 8492..."
+                        </div>
+<div class="flex gap-2 text-term-dim mt-3">
+<span>$</span>
+<span class="text-white">check_result</span>
+</div>
+<div class="pl-4 flex items-center gap-2">
+<span class="text-term-green font-bold">&gt;&gt; SEND_SUCCESS</span>
+<span class="h-1.5 w-1.5 bg-term-green inline-block animate-pulse"></span>
+</div>
+</div>
+<div class="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-term-green/5 to-transparent pointer-events-none"></div>
+</div>
+</section>
+<div class="h-16"></div>
+</div>
+<nav class="absolute bottom-0 w-full bg-term-bg/95 backdrop-blur-md border-t border-term-border z-50">
+<div class="flex justify-around items-center h-[72px] px-2">
+<a class="flex flex-col items-center justify-center w-full h-full gap-1 group" href="#">
+<div class="relative p-1">
+<span class="material-symbols-outlined text-term-green text-[24px]">terminal</span>
+<span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-term-green shadow-neon"></span>
+</div>
+<span class="text-[10px] font-bold tracking-widest text-term-green mt-1">/HOME</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full gap-1 group text-term-dim hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">dataset</span>
+<span class="text-[10px] font-medium tracking-widest mt-1">/LOGS</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full gap-1 group text-term-dim hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">settings_ethernet</span>
+<span class="text-[10px] font-medium tracking-widest mt-1">/CONF</span>
+</a>
+</div>
+</nav>
+</main>
+
+</body></html>

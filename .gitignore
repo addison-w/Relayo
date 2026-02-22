@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# React Native
+.expo/
+*.hbc
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/*.iml
+android/.idea/
+android/app/*.iml
+
+# iOS (not used but just in case)
+ios/Pods/
+ios/build/
+
+# Metro
+.metro-health-check*
+
+# Build
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Loki Mode state (tracked separately)
+.loki/memory/
+.loki/metrics/
+.loki/state/agents/
+.loki/state/circuit-breakers/
+.loki/artifacts/
+
+# Secrets
+*.keystore
+*.jks
+credentials.json
+google-services.json

@@ -1,0 +1,26 @@
+{
+  "project": "relayo",
+  "version": "0.0.0",
+  "phase": "bootstrap",
+  "phase_index": 0,
+  "phases": [
+    "bootstrap",
+    "discovery",
+    "architecture",
+    "development-m1",
+    "development-m2",
+    "development-m3",
+    "development-m4",
+    "development-m5",
+    "qa",
+    "release"
+  ],
+  "started_at": "2026-02-22T19:47:00Z",
+  "last_updated": "2026-02-22T19:47:00Z",
+  "metrics": {
+    "tasks_completed": 0,
+    "tasks_failed": 0,
+    "agents_spawned": 3,
+    "total_commits": 0
+  }
+}

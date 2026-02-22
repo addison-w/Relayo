@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIM Hardware Resolution - Relayo</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "term-bg": "#0a0a0a",
+                        "term-fg": "#e5e5e5",
+                        "term-dim": "#666666",
+                        "term-green": "#00ff41",
+                        "term-green-dim": "#004d13",
+                        "term-amber": "#ffb000",
+                        "term-red": "#ff3333",
+                        "term-border": "#333333",
+                        "term-surface": "#111111",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    backgroundImage: {
+                        'grid-pattern': "linear-gradient(to right, #1a1a1a 1px, transparent 1px), linear-gradient(to bottom, #1a1a1a 1px, transparent 1px)",
+                    },
+                    backgroundSize: {
+                        'grid-size': '24px 24px',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+        .scan-line {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            background-size: 100% 2px;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        @keyframes scanline {
+            0% { top: -100px; }
+            100% { top: 100%; }
+        }
+        .crt-flicker {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 16, 16, 0.02);
+            opacity: 0;
+            z-index: 20;
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.02; }
+            50% { opacity: 0.05; }
+            100% { opacity: 0.02; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans bg-term-bg text-term-fg antialiased selection:bg-term-green/20 selection:text-term-green">
+<div class="relative mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden bg-term-bg border-x border-term-border">
+<div class="absolute inset-0 bg-grid-pattern bg-grid-size opacity-50 pointer-events-none"></div>
+<div class="scan-line"></div>
+<header class="relative z-30 flex items-center justify-between px-5 pt-6 pb-4 bg-term-bg/95 border-b border-term-border backdrop-blur-sm">
+<button class="group flex h-8 w-8 items-center justify-center border border-term-border bg-term-surface hover:bg-term-border hover:text-term-green transition-all duration-200">
+<span class="material-symbols-outlined text-term-dim group-hover:text-term-green text-sm">arrow_back_ios_new</span>
+</button>
+<div class="flex flex-col items-center">
+<h1 class="font-mono text-sm font-bold tracking-widest text-term-fg uppercase">HARDWARE_CFG</h1>
+<span class="text-[10px] font-mono text-term-dim tracking-wide">v2.4.0-RELAYO</span>
+</div>
+<div class="h-8 w-8 flex items-center justify-center">
+<span class="material-symbols-outlined text-term-green animate-pulse text-lg">terminal</span>
+</div>
+</header>
+<main class="relative z-10 flex-1 overflow-y-auto px-5 py-6 scroll-smooth">
+<div class="mb-8 border-l-2 border-term-green pl-4 py-1">
+<p class="font-mono text-xs text-term-green tracking-wide mb-1">&gt; SYSTEM_DIAGNOSTIC_RUNNING</p>
+<p class="font-mono text-[10px] text-term-dim leading-relaxed">
+                    Analyzing SIM hardware interfaces for header mapping resolution. Verify detected parameters below.
+                </p>
+</div>
+<div class="relative mb-6 bg-term-surface border border-term-border">
+<div class="flex items-center justify-between bg-term-border/30 px-4 py-2 border-b border-term-border">
+<div class="flex items-center gap-2">
+<span class="h-2 w-2 rounded-full bg-term-green shadow-[0_0_8px_rgba(0,255,65,0.6)]"></span>
+<h3 class="font-mono text-sm font-bold text-term-fg">[SLOT_01]</h3>
+</div>
+<span class="font-mono text-[10px] text-term-green bg-term-green-dim/30 px-1.5 py-0.5 border border-term-green/30">ACTIVE</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="col-span-1">
+<p class="font-mono text-[10px] text-term-dim uppercase tracking-wider mb-1">Carrier_ID</p>
+<p class="font-mono text-sm text-term-fg">RAKUTEN_MNO</p>
+</div>
+<div class="col-span-1">
+<p class="font-mono text-[10px] text-term-dim uppercase tracking-wider mb-1">Signal_State</p>
+<div class="flex gap-0.5 mt-1.5">
+<div class="h-2 w-1 bg-term-green"></div>
+<div class="h-2 w-1 bg-term-green"></div>
+<div class="h-2 w-1 bg-term-green"></div>
+<div class="h-2 w-1 bg-term-dim/30"></div>
+</div>
+</div>
+</div>
+<div class="border-t border-term-border border-dashed pt-3">
+<p class="font-mono text-[10px] text-term-dim uppercase tracking-wider mb-1">MSISDN_RESOLVED</p>
+<p class="font-mono text-sm text-term-green tracking-wide">+81 90-1234-5678</p>
+<div class="mt-2 flex gap-4">
+<div>
+<span class="font-mono text-[9px] text-term-dim block">ICCID</span>
+<span class="font-mono text-[9px] text-term-dim/70">8981 1234 5678 9012 345f</span>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute top-0 right-0 h-2 w-2 border-t border-r border-term-green/50"></div>
+<div class="absolute bottom-0 left-0 h-2 w-2 border-b border-l border-term-green/50"></div>
+</div>
+<div class="relative mb-6 bg-term-surface border border-term-border shadow-none">
+<div class="flex items-center justify-between bg-term-border/30 px-4 py-2 border-b border-term-border">
+<div class="flex items-center gap-2">
+<span class="h-2 w-2 rounded-full bg-term-amber animate-pulse"></span>
+<h3 class="font-mono text-sm font-bold text-term-fg">[SLOT_02]</h3>
+</div>
+<span class="font-mono text-[10px] text-term-amber bg-term-amber/10 px-1.5 py-0.5 border border-term-amber/30">ATTENTION</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="col-span-1">
+<p class="font-mono text-[10px] text-term-dim uppercase tracking-wider mb-1">Carrier_ID</p>
+<p class="font-mono text-sm text-term-fg">POVO_2.0</p>
+</div>
+<div class="col-span-1">
+<p class="font-mono text-[10px] text-term-dim uppercase tracking-wider mb-1">Sub_ID</p>
+<p class="font-mono text-[10px] text-term-dim/70 mt-0.5">8981-0000-FAIL-23X</p>
+</div>
+</div>
+<div class="border-t border-term-border border-dashed pt-3 relative">
+<div class="flex justify-between items-baseline mb-2">
+<label class="font-mono text-[10px] text-term-amber uppercase tracking-wider" for="sim2-number">(!) MSISDN_MISSING</label>
+<span class="font-mono text-[9px] text-term-dim">MANUAL_OVERRIDE</span>
+</div>
+<div class="relative group">
+<div class="absolute -inset-0.5 bg-term-amber/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-sm"></div>
+<input class="w-full bg-black/50 border border-term-dim text-term-fg font-mono text-sm px-3 py-2.5 focus:border-term-amber focus:ring-1 focus:ring-term-amber focus:outline-none placeholder-term-dim/30 transition-all sharp-corners" id="sim2-number" placeholder="ENTER_PHONE_NUMBER..." type="tel"/>
+<div class="absolute right-0 top-0 bottom-0 w-8 flex items-center justify-center bg-term-border/30 border-l border-term-dim pointer-events-none">
+<span class="material-symbols-outlined text-term-dim text-xs">edit</span>
+</div>
+</div>
+<p class="mt-2 font-mono text-[9px] text-term-dim leading-normal">
+                            * ERR_AUTO_DETECT: Hardware interface returned null. Manual input required for routing table update.
+                        </p>
+</div>
+</div>
+<div class="absolute top-0 right-0 h-2 w-2 border-t border-r border-term-amber/50"></div>
+<div class="absolute bottom-0 left-0 h-2 w-2 border-b border-l border-term-amber/50"></div>
+</div>
+<div class="mt-8 border border-term-border bg-term-surface/50 p-4">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-term-green/70 text-base pt-0.5">terminal</span>
+<div>
+<h4 class="font-mono text-xs font-bold text-term-fg mb-1">PROTOCOL_INFO:</h4>
+<p class="font-mono text-[10px] text-term-dim leading-relaxed">
+                            Correct header mapping ensures email forwarding integrity. Incorrect configuration may result in packet drop (SMS failure).
+                        </p>
+</div>
+</div>
+</div>
+<div class="mt-8 flex justify-center opacity-40">
+<div class="flex gap-1">
+<div class="w-1 h-1 bg-term-dim rounded-full"></div>
+<div class="w-1 h-1 bg-term-dim rounded-full"></div>
+<div class="w-1 h-1 bg-term-dim rounded-full"></div>
+</div>
+</div>
+</main>
+<footer class="relative z-30 px-5 pb-8 pt-4 bg-term-bg/95 border-t border-term-border backdrop-blur-md">
+<button class="w-full bg-term-green text-black font-mono font-bold text-sm py-3.5 uppercase tracking-wide hover:bg-term-green/90 active:bg-term-green/80 transition-colors flex items-center justify-center gap-2 group">
+<span class="material-symbols-outlined text-lg">save</span>
+<span>EXECUTE_CONFIG_SAVE</span>
+</button>
+<div class="mt-2 text-center">
+<span class="font-mono text-[9px] text-term-dim">SHA-256 INTEGRITY CHECK: PENDING</span>
+</div>
+</footer>
+</div>
+
+</body></html>

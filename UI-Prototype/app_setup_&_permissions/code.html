@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Relayo - System Initialization</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "terminal-bg": "#0D0D0D",
+                        "terminal-card": "#161616",
+                        "terminal-green": "#22C55E",
+                        "terminal-dim": "#4B5563",
+                        "terminal-text": "#E5E7EB",
+                        "terminal-accent": "#0EA5E9", 
+                        "terminal-border": "#27272A",
+                    },
+                    fontFamily: {
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                    boxShadow: {
+                        "glow-green": "0 0 10px rgba(34, 197, 94, 0.2)",
+                        "glow-accent": "0 0 10px rgba(14, 165, 233, 0.2)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }@keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .cursor-blink::after {
+            content: '█';
+            margin-left: 2px;
+            color: #22C55E;
+            animation: blink 1s step-end infinite;
+        }
+        .step-line::before {
+            content: '';
+            position: absolute;
+            top: 2.25rem;
+            bottom: -1rem;
+            left: 50%;
+            width: 1px;
+            background: repeating-linear-gradient(to bottom, #27272A 0, #27272A 4px, transparent 4px, transparent 8px);
+            transform: translateX(-50%);
+            z-index: 0;
+        }
+        .step-item:last-child .step-line::before {
+            display: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-terminal-bg text-terminal-text min-h-screen flex flex-col items-center justify-center antialiased relative overflow-hidden">
+<div class="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-[2] bg-[length:100%_2px,3px_100%]"></div>
+<div class="relative w-full max-w-md mx-auto h-full flex flex-col z-10 p-6 sm:p-8 min-h-screen sm:min-h-[800px] sm:h-auto sm:border sm:border-terminal-border sm:rounded-none sm:bg-terminal-card/80">
+<header class="flex flex-col items-start pt-8 pb-10 space-y-6 w-full border-b border-terminal-border mb-8 border-dashed">
+<div class="w-full font-mono text-xs text-terminal-dim mb-2 flex justify-between">
+<span>SYS_INIT_SEQ_V.1.0.4</span>
+<span>STATUS: PENDING</span>
+</div>
+<div class="w-full flex justify-center py-4">
+<pre class="text-[10px] leading-[10px] text-terminal-green font-bold text-center">   __
+  / /  ___
+ / _ \/ _ \
+/_//_/\___/
+   RELAYO
+                </pre>
+</div>
+<div class="space-y-2 w-full">
+<h1 class="text-xl font-bold tracking-tight text-white uppercase cursor-blink">System Initialization</h1>
+<p class="text-xs text-terminal-dim font-normal leading-relaxed">
+                    &gt; Initializing boot sequence...<br/>
+                    &gt; Requesting user authorization for subsystems.
+                </p>
+</div>
+</header>
+<div class="flex-1 flex flex-col space-y-2 relative">
+<div class="step-item group flex gap-4 relative pb-8">
+<div class="step-line flex flex-col items-center flex-shrink-0 w-8 relative">
+<div class="z-10 flex items-center justify-center w-8 h-8 bg-terminal-card border border-terminal-border text-terminal-dim transition-colors duration-300 group-hover:border-terminal-green group-hover:text-terminal-green">
+<span class="text-xs font-bold">01</span>
+</div>
+</div>
+<div class="flex flex-col flex-1 pt-1">
+<div class="flex justify-between items-start gap-4">
+<div class="flex-1">
+<h3 class="text-sm font-bold text-terminal-green uppercase font-mono tracking-wide">PERMISSION_SMS_READ</h3>
+<p class="text-[10px] text-terminal-dim mt-1 font-mono">MODULE: SMS_READER.DLL<br/>Required for payload extraction.</p>
+</div>
+<button class="flex items-center justify-center px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all border border-terminal-green text-terminal-green hover:bg-terminal-green hover:text-black focus:outline-none shadow-glow-green active:translate-y-0.5 h-8 min-w-[80px]">
+                            [ EXECUTE ]
+                        </button>
+</div>
+</div>
+</div>
+<div class="step-item group flex gap-4 relative pb-8">
+<div class="step-line flex flex-col items-center flex-shrink-0 w-8 relative">
+<div class="z-10 flex items-center justify-center w-8 h-8 bg-terminal-bg border border-terminal-green text-terminal-green shadow-glow-green">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</div>
+<div class="flex flex-col flex-1 pt-1">
+<div class="flex justify-between items-start gap-4">
+<div class="flex-1">
+<h3 class="text-sm font-bold text-white uppercase font-mono tracking-wide opacity-50 line-through">PERMISSION_NOTIFY</h3>
+<p class="text-[10px] text-terminal-dim mt-1 font-mono">STATUS: GRANTED<br/>Log output enabled.</p>
+</div>
+<div class="flex items-center px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-terminal-dim border border-terminal-border bg-terminal-card/50 h-8 min-w-[80px] justify-center">
+                            GRANTED
+                        </div>
+</div>
+</div>
+</div>
+<div class="step-item group flex gap-4 relative pb-8">
+<div class="step-line flex flex-col items-center flex-shrink-0 w-8 relative">
+<div class="z-10 flex items-center justify-center w-8 h-8 bg-terminal-card border border-terminal-border text-terminal-dim transition-colors duration-300 group-hover:border-terminal-accent group-hover:text-terminal-accent">
+<span class="text-xs font-bold">03</span>
+</div>
+</div>
+<div class="flex flex-col flex-1 pt-1">
+<div class="flex justify-between items-start gap-4">
+<div class="flex-1">
+<h3 class="text-sm font-bold text-terminal-accent uppercase font-mono tracking-wide">OVERRIDE_BATTERY_OPT</h3>
+<p class="text-[10px] text-terminal-dim mt-1 font-mono">MODULE: POWER_MGMT.SYS<br/>Ensure continuous uptime.</p>
+</div>
+<button class="flex items-center justify-center px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all border border-terminal-accent text-terminal-accent hover:bg-terminal-accent hover:text-white focus:outline-none shadow-glow-accent active:translate-y-0.5 h-8 min-w-[80px]">
+                            [ EXECUTE ]
+                        </button>
+</div>
+</div>
+</div>
+<div class="step-item group flex gap-4 relative">
+<div class="step-line flex flex-col items-center flex-shrink-0 w-8 relative">
+<div class="z-10 flex items-center justify-center w-8 h-8 bg-terminal-card border border-terminal-border text-terminal-dim transition-colors duration-300 group-hover:border-terminal-text group-hover:text-white">
+<span class="text-xs font-bold">04</span>
+</div>
+</div>
+<div class="flex flex-col flex-1 pt-1">
+<div class="flex justify-between items-start gap-4">
+<div class="flex-1">
+<h3 class="text-sm font-bold text-terminal-text uppercase font-mono tracking-wide">ENABLE_AUTOSTART</h3>
+<p class="text-[10px] text-terminal-dim mt-1 font-mono">MODULE: BOOT_LOADER.EXE<br/>Initialize on system boot.</p>
+</div>
+<button class="flex items-center justify-center px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all border border-terminal-border text-terminal-dim hover:border-terminal-text hover:text-terminal-text focus:outline-none active:translate-y-0.5 h-8 min-w-[80px]">
+                            [ EXECUTE ]
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-10 pb-4 mt-auto w-full border-t border-terminal-border border-dashed">
+<div class="flex justify-between items-center mb-4 text-[10px] font-mono text-terminal-dim">
+<span>PROGRESS: 25%</span>
+<div class="w-24 h-1.5 bg-terminal-card border border-terminal-border ml-2">
+<div class="h-full bg-terminal-green w-1/4"></div>
+</div>
+</div>
+<button class="w-full bg-terminal-card border border-terminal-border text-terminal-dim font-mono text-sm py-4 uppercase tracking-widest cursor-not-allowed transition-all opacity-50 flex items-center justify-center gap-2 group" disabled="">
+<span class="w-2 h-2 bg-terminal-dim rounded-none group-hover:animate-pulse"></span>
+                AWAITING_PERMISSIONS
+            </button>
+<p class="text-center text-[10px] text-terminal-dim mt-4 font-mono">
+                &gt; System idle. Waiting for user input...
+            </p>
+</div>
+</div>
+
+</body></html>
