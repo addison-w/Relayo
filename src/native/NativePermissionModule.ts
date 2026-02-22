@@ -4,7 +4,8 @@ export interface PermissionStatus {
   RECEIVE_SMS: boolean;
   READ_SMS: boolean;
   READ_PHONE_STATE: boolean;
-  POST_NOTIFICATIONS?: boolean;
+  POST_NOTIFICATIONS: boolean;
+  BATTERY_OPTIMIZED: boolean;
 }
 
 interface PermissionModuleInterface {

@@ -64,3 +64,6 @@ coverage/
 *.jks
 credentials.json
 google-services.json
+
+# CMake build cache
+android/app/.cxx/

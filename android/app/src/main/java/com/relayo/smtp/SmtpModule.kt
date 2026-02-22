@@ -22,13 +22,13 @@ class SmtpModule(private val reactContext: ReactApplicationContext) :
             try {
                 val config = SmtpConfig(
                     host = map.getString("host") ?: "",
-                    port = if (map.hasKey("port")) map.getInt("port") else 587,
+                    port = if (map.hasKey("port")) map.getInt("port") else 465,
                     username = map.getString("username") ?: "",
                     password = map.getString("password") ?: "",
                     fromEmail = map.getString("fromEmail") ?: "",
                     toEmail = map.getString("toEmail") ?: "",
-                    useSsl = map.hasKey("useSsl") && map.getBoolean("useSsl"),
-                    useStartTls = !map.hasKey("useStartTls") || map.getBoolean("useStartTls")
+                    useSsl = !map.hasKey("useSsl") || map.getBoolean("useSsl"),
+                    useStartTls = map.hasKey("useStartTls") && map.getBoolean("useStartTls")
                 )
                 store.save(config)
                 promise.resolve(true)
@@ -51,6 +51,7 @@ class SmtpModule(private val reactContext: ReactApplicationContext) :
                     putString("host", config.host)
                     putInt("port", config.port)
                     putString("username", config.username)
+                    putBoolean("hasPassword", config.password.isNotEmpty())
                     putString("fromEmail", config.fromEmail)
                     putString("toEmail", config.toEmail)
                     putBoolean("useSsl", config.useSsl)

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Promise
@@ -29,6 +30,9 @@ class PermissionModule(private val reactContext: ReactApplicationContext) :
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                // Pre-Android 13: notifications are always allowed
+                map.putBoolean("POST_NOTIFICATIONS", true)
             }
             for (perm in permissions) {
                 val granted = ContextCompat.checkSelfPermission(reactContext, perm) ==
@@ -36,6 +40,11 @@ class PermissionModule(private val reactContext: ReactApplicationContext) :
                 val key = perm.substringAfterLast(".")
                 map.putBoolean(key, granted)
             }
+
+            // Check battery optimization status
+            val pm = reactContext.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+            map.putBoolean("BATTERY_OPTIMIZED", pm.isIgnoringBatteryOptimizations(reactContext.packageName))
+
             promise.resolve(map)
         } catch (e: Exception) {
             promise.reject("CHECK_ERROR", e.message)

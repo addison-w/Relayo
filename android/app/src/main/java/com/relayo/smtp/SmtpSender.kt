@@ -30,7 +30,14 @@ object SmtpSender {
                 setSubject(subject, "UTF-8")
                 setText(body, "UTF-8")
             }
-            Transport.send(msg)
+            if (config.useSsl) {
+                val transport = session.getTransport("smtps")
+                transport.connect(config.host, config.port, config.username, config.password)
+                transport.sendMessage(msg, msg.allRecipients)
+                transport.close()
+            } else {
+                Transport.send(msg)
+            }
             SmtpResult.Success
         } catch (e: AuthenticationFailedException) {
             SmtpResult.Failure("auth_failed", e.message ?: "Authentication failed")
@@ -50,20 +57,26 @@ object SmtpSender {
     }
 
     private fun buildProperties(config: SmtpConfig): Properties = Properties().apply {
-        put("mail.smtp.host", config.host)
-        put("mail.smtp.port", config.port.toString())
-        put("mail.smtp.auth", "true")
-        put("mail.smtp.connectiontimeout", "15000")
-        put("mail.smtp.timeout", "15000")
-        put("mail.smtp.writetimeout", "15000")
         if (config.useSsl) {
-            put("mail.smtp.socketFactory.port", config.port.toString())
-            put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
-            put("mail.smtp.ssl.enable", "true")
-        }
-        if (config.useStartTls) {
-            put("mail.smtp.starttls.enable", "true")
-            put("mail.smtp.starttls.required", "true")
+            put("mail.smtps.host", config.host)
+            put("mail.smtps.port", config.port.toString())
+            put("mail.smtps.auth", "true")
+            put("mail.smtps.connectiontimeout", "30000")
+            put("mail.smtps.timeout", "30000")
+            put("mail.smtps.writetimeout", "30000")
+            put("mail.smtps.ssl.enable", "true")
+            put("mail.smtps.ssl.trust", config.host)
+        } else {
+            put("mail.smtp.host", config.host)
+            put("mail.smtp.port", config.port.toString())
+            put("mail.smtp.auth", "true")
+            put("mail.smtp.connectiontimeout", "30000")
+            put("mail.smtp.timeout", "30000")
+            put("mail.smtp.writetimeout", "30000")
+            if (config.useStartTls) {
+                put("mail.smtp.starttls.enable", "true")
+                put("mail.smtp.starttls.required", "true")
+            }
         }
     }
 }

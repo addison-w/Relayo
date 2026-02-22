@@ -15,6 +15,7 @@ interface SmtpConfigOutput {
   host: string;
   port: number;
   username: string;
+  hasPassword: boolean;
   fromEmail: string;
   toEmail: string;
   useSsl: boolean;

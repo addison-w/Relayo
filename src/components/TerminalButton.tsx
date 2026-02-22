@@ -70,7 +70,7 @@ const TerminalButton: React.FC<TerminalButtonProps> = ({
       : variant === 'secondary'
         ? pressAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [colors.borderDim, accent],
+            outputRange: [accent, accent],
           })
         : colors.borderDim;
 
@@ -78,7 +78,7 @@ const TerminalButton: React.FC<TerminalButtonProps> = ({
     variant === 'primary'
       ? accent
       : variant === 'secondary'
-        ? colors.textDim
+        ? accent
         : colors.textMuted;
 
   return (

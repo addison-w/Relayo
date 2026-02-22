@@ -6,13 +6,13 @@ import {
   StyleSheet,
   Animated,
   AppState,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../navigation/types';
-import type {PermissionStep} from '../types';
 import PermissionModule from '../native/NativePermissionModule';
-import type {PermissionStatus} from '../native/NativePermissionModule';
 import TerminalButton from '../components/TerminalButton';
 import StatusBadge from '../components/StatusBadge';
 import ScanlineOverlay from '../components/ScanlineOverlay';
@@ -20,15 +20,29 @@ import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
+type PermissionStepStatus = 'pending' | 'granted';
+
+interface PermissionStep {
+  id: string;
+  number: string;
+  title: string;
+  description: string;
+  module: string;
+  status: PermissionStepStatus;
+  accentColor: 'green' | 'cyan' | 'amber' | 'text';
+  type: 'runtime' | 'special' | 'install';
+}
+
 const INITIAL_STEPS: PermissionStep[] = [
   {
-    id: 'sms_read',
+    id: 'sms',
     number: '01',
-    title: 'PERMISSION_SMS_READ',
-    description: 'Required for payload extraction',
-    module: 'android.permission.READ_SMS',
+    title: 'PERMISSION_SMS',
+    description: 'Required for payload interception',
+    module: 'android.permission.RECEIVE_SMS + READ_SMS',
     status: 'pending',
     accentColor: 'green',
+    type: 'runtime',
   },
   {
     id: 'notify',
@@ -38,33 +52,37 @@ const INITIAL_STEPS: PermissionStep[] = [
     module: 'android.permission.POST_NOTIFICATIONS',
     status: 'pending',
     accentColor: 'green',
+    type: 'runtime',
+  },
+  {
+    id: 'phone_state',
+    number: '03',
+    title: 'PERMISSION_PHONE_STATE',
+    description: 'SIM card identification',
+    module: 'android.permission.READ_PHONE_STATE',
+    status: 'pending',
+    accentColor: 'green',
+    type: 'runtime',
   },
   {
     id: 'battery',
-    number: '03',
+    number: '04',
     title: 'OVERRIDE_BATTERY_OPT',
     description: 'Ensure continuous uptime',
     module: 'android.permission.REQUEST_IGNORE_BATTERY',
     status: 'pending',
     accentColor: 'cyan',
+    type: 'special',
   },
   {
     id: 'autostart',
-    number: '04',
+    number: '05',
     title: 'ENABLE_AUTOSTART',
     description: 'Initialize on system boot',
     module: 'android.permission.RECEIVE_BOOT_COMPLETED',
-    status: 'pending',
+    status: 'granted',
     accentColor: 'green',
-  },
-  {
-    id: 'bg_data',
-    number: '05',
-    title: 'BACKGROUND_DATA',
-    description: 'Allow network in background',
-    module: 'android.permission.ACCESS_NETWORK_STATE',
-    status: 'pending',
-    accentColor: 'green',
+    type: 'install',
   },
   {
     id: 'fg_svc',
@@ -72,15 +90,11 @@ const INITIAL_STEPS: PermissionStep[] = [
     title: 'FOREGROUND_SVC',
     description: 'Persistent monitoring service',
     module: 'android.permission.FOREGROUND_SERVICE',
-    status: 'pending',
+    status: 'granted',
     accentColor: 'green',
+    type: 'install',
   },
 ];
-
-const PERMISSION_KEY_MAP: Record<string, keyof PermissionStatus> = {
-  sms_read: 'READ_SMS',
-  notify: 'POST_NOTIFICATIONS',
-};
 
 const accentColorMap = {
   green: colors.green,
@@ -104,18 +118,37 @@ const OnboardingScreen: React.FC<Props> = ({navigation}) => {
       const status = await PermissionModule.checkAllPermissions();
       setSteps(prev =>
         prev.map(step => {
-          const permKey = PERMISSION_KEY_MAP[step.id];
-          if (permKey && status[permKey] !== undefined) {
-            return {
-              ...step,
-              status: status[permKey] ? 'granted' : 'pending',
-            };
+          if (step.type === 'install') return step;
+
+          switch (step.id) {
+            case 'sms':
+              return {
+                ...step,
+                status:
+                  status.RECEIVE_SMS && status.READ_SMS ? 'granted' : 'pending',
+              };
+            case 'notify':
+              return {
+                ...step,
+                status: status.POST_NOTIFICATIONS ? 'granted' : 'pending',
+              };
+            case 'phone_state':
+              return {
+                ...step,
+                status: status.READ_PHONE_STATE ? 'granted' : 'pending',
+              };
+            case 'battery':
+              return {
+                ...step,
+                status: status.BATTERY_OPTIMIZED ? 'granted' : 'pending',
+              };
+            default:
+              return step;
           }
-          return step;
         }),
       );
     } catch {
-      // Native module unavailable — keep steps as-is
+      // Native module unavailable
     } finally {
       setLoading(false);
     }
@@ -153,20 +186,84 @@ const OnboardingScreen: React.FC<Props> = ({navigation}) => {
     return () => blink.stop();
   }, [cursorOpacity]);
 
-  const handleExecute = async (stepId: string) => {
+  const requestSmsPermissions = async () => {
     try {
-      if (stepId === 'battery') {
-        await PermissionModule.openBatteryOptimizationSettings();
-      } else {
-        await PermissionModule.openAppSettings();
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+        PermissionsAndroid.PERMISSIONS.READ_SMS,
+      ]);
+      const allGranted =
+        results[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] ===
+          PermissionsAndroid.RESULTS.GRANTED &&
+        results[PermissionsAndroid.PERMISSIONS.READ_SMS] ===
+          PermissionsAndroid.RESULTS.GRANTED;
+      if (allGranted) {
+        updateStepStatus('sms', 'granted');
       }
     } catch {
-      setSteps(prev =>
-        prev.map(s =>
-          s.id === stepId ? {...s, status: 'granted' as const} : s,
-        ),
-      );
+      // Fallback to app settings if request fails
+      await PermissionModule.openAppSettings();
     }
+  };
+
+  const requestNotificationPermission = async () => {
+    if (Number(Platform.Version) < 33) {
+      updateStepStatus('notify', 'granted');
+      return;
+    }
+    try {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      );
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        updateStepStatus('notify', 'granted');
+      }
+    } catch {
+      await PermissionModule.openAppSettings();
+    }
+  };
+
+  const requestPhoneStatePermission = async () => {
+    try {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+      );
+      if (result === PermissionsAndroid.RESULTS.GRANTED) {
+        updateStepStatus('phone_state', 'granted');
+      }
+    } catch {
+      await PermissionModule.openAppSettings();
+    }
+  };
+
+  const requestBatteryOptimization = async () => {
+    await PermissionModule.openBatteryOptimizationSettings();
+  };
+
+  const updateStepStatus = (stepId: string, status: PermissionStepStatus) => {
+    setSteps(prev =>
+      prev.map(s => (s.id === stepId ? {...s, status} : s)),
+    );
+  };
+
+  const handleExecute = async (stepId: string) => {
+    switch (stepId) {
+      case 'sms':
+        await requestSmsPermissions();
+        break;
+      case 'notify':
+        await requestNotificationPermission();
+        break;
+      case 'phone_state':
+        await requestPhoneStatePermission();
+        break;
+      case 'battery':
+        await requestBatteryOptimization();
+        break;
+      default:
+        break;
+    }
+    await checkPermissions();
   };
 
   const handleProceed = () => {

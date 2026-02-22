@@ -37,14 +37,14 @@ class SmtpConfigStore(private val context: Context) {
 
     fun load(): SmtpConfig? {
         val host = prefs.getString("host", null) ?: return null
-        val port = prefs.getInt("port", 587)
+        val port = prefs.getInt("port", 465)
         val username = prefs.getString("username", null) ?: return null
         val encPassword = prefs.getString("password_enc", null) ?: return null
         val iv = prefs.getString("password_iv", null) ?: return null
         val fromEmail = prefs.getString("from_email", null) ?: return null
         val toEmail = prefs.getString("to_email", null) ?: return null
-        val useSsl = prefs.getBoolean("use_ssl", false)
-        val useStartTls = prefs.getBoolean("use_starttls", true)
+        val useSsl = prefs.getBoolean("use_ssl", true)
+        val useStartTls = prefs.getBoolean("use_starttls", false)
         val password = decryptPassword(encPassword, iv)
         return SmtpConfig(host, port, username, password, fromEmail, toEmail, useSsl, useStartTls)
     }

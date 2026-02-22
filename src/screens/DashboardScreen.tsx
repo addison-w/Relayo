@@ -318,7 +318,10 @@ const DashboardScreen: React.FC = () => {
                   },
                 ]}
               />
-              <Text style={[styles.powerIcon, {color: statusColor}]}>⏻</Text>
+              <View style={styles.powerIconContainer}>
+                <View style={[styles.powerStem, {backgroundColor: statusColor}]} />
+                <View style={[styles.powerArc, {borderColor: statusColor}]} />
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -505,8 +508,27 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.08,
   },
-  powerIcon: {
-    fontSize: 36,
+  powerIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+  },
+  powerStem: {
+    width: 3,
+    height: 16,
+    position: 'absolute',
+    top: 0,
+    zIndex: 1,
+  },
+  powerArc: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 3,
+    borderTopColor: 'transparent',
+    position: 'absolute',
+    top: 6,
   },
   statusRow: {
     flexDirection: 'row',

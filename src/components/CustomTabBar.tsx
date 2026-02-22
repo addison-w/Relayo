@@ -3,15 +3,10 @@ import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
-interface TabConfig {
-  label: string;
-  icon: string;
-}
-
-const TAB_CONFIG: Record<string, TabConfig> = {
-  Dashboard: {label: '/HOME', icon: 'terminal'},
-  Logs: {label: '/LOGS', icon: 'dataset'},
-  Config: {label: '/CONF', icon: 'settings_ethernet'},
+const TAB_LABELS: Record<string, string> = {
+  Dashboard: '/HOME',
+  Logs: '/LOGS',
+  Config: '/CONF',
 };
 
 const CustomTabBar: React.FC<BottomTabBarProps> = ({
@@ -24,10 +19,7 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({
       {state.routes.map((route, index) => {
         const {options} = descriptors[route.key];
         const isFocused = state.index === index;
-        const config = TAB_CONFIG[route.name] ?? {
-          label: '/' + route.name.toUpperCase(),
-          icon: route.name.toLowerCase(),
-        };
+        const label = TAB_LABELS[route.name] ?? '/' + route.name.toUpperCase();
 
         const handlePress = () => {
           const event = navigation.emit({
@@ -60,17 +52,10 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({
             style={styles.tab}>
             <Text
               style={[
-                styles.icon,
-                {color: isFocused ? colors.green : colors.textMuted},
-              ]}>
-              {config.icon}
-            </Text>
-            <Text
-              style={[
                 styles.label,
                 {color: isFocused ? colors.green : colors.textMuted},
               ]}>
-              {config.label}
+              {label}
             </Text>
             {isFocused && <View style={styles.indicator} />}
           </TouchableOpacity>
@@ -95,11 +80,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
     position: 'relative',
-  },
-  icon: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.label,
-    marginBottom: spacing.xs,
   },
   label: {
     fontFamily: fontFamily.monoBold,

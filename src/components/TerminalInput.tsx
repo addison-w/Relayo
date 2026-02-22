@@ -18,6 +18,7 @@ interface TerminalInputProps {
   keyboardType?: KeyboardTypeOptions;
   rightIcon?: string;
   onRightIconPress?: () => void;
+  error?: string;
 }
 
 const TerminalInput: React.FC<TerminalInputProps> = ({
@@ -29,20 +30,25 @@ const TerminalInput: React.FC<TerminalInputProps> = ({
   keyboardType,
   rightIcon,
   onRightIconPress,
+  error,
 }) => {
   const [focused, setFocused] = useState(false);
 
   const handleFocus = useCallback(() => setFocused(true), []);
   const handleBlur = useCallback(() => setFocused(false), []);
 
+  const borderColor = error
+    ? colors.red
+    : focused
+      ? colors.cyan
+      : colors.borderDim;
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{'> '}{label.toUpperCase()}:</Text>
-      <View
-        style={[
-          styles.inputContainer,
-          {borderColor: focused ? colors.cyan : colors.borderDim},
-        ]}>
+      <Text style={[styles.label, error ? styles.labelError : undefined]}>
+        {'> '}{label.toUpperCase()}:
+      </Text>
+      <View style={[styles.inputContainer, {borderColor}]}>
         <TextInput
           style={styles.input}
           value={value}
@@ -66,6 +72,9 @@ const TerminalInput: React.FC<TerminalInputProps> = ({
           </TouchableOpacity>
         )}
       </View>
+      {error ? (
+        <Text style={styles.errorText}>{'  ✗ '}{error}</Text>
+      ) : null}
     </View>
   );
 };
@@ -80,6 +89,9 @@ const styles = StyleSheet.create({
     color: colors.cyan,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  labelError: {
+    color: colors.red,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -104,6 +116,12 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.mono,
     fontSize: fontSize.body,
     color: colors.textDim,
+  },
+  errorText: {
+    fontFamily: fontFamily.mono,
+    fontSize: fontSize.micro,
+    color: colors.red,
+    letterSpacing: 0.3,
   },
 });
 

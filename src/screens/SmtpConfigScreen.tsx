@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useMemo} from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,16 @@ import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
 type NavProp = NativeStackNavigationProp<ConfigStackParamList, 'SmtpConfig'>;
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const isValidEmail = (value: string): boolean =>
+  EMAIL_REGEX.test(value.trim());
+
+const isValidPort = (value: string): boolean => {
+  const num = parseInt(value, 10);
+  return !isNaN(num) && num > 0 && num <= 65535 && String(num) === value.trim();
+};
+
 const SmtpConfigScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavProp>();
@@ -30,12 +40,28 @@ const SmtpConfigScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [fromEmail, setFromEmail] = useState('');
   const [toEmail, setToEmail] = useState('');
-  const [useSsl, setUseSsl] = useState(false);
-  const [useStartTls, setUseStartTls] = useState(true);
+  const [useSsl, setUseSsl] = useState(true);
+  const [useStartTls, setUseStartTls] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [hasSavedPassword, setHasSavedPassword] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => (text: string) => {
+    setTouched(prev => ({...prev, [field]: true}));
+    switch (field) {
+      case 'host': return setHost(text);
+      case 'port': return setPort(text.replace(/[^0-9]/g, ''));
+      case 'username': return setUsername(text);
+      case 'password':
+        setHasSavedPassword(false);
+        return setPassword(text);
+      case 'fromEmail': return setFromEmail(text);
+      case 'toEmail': return setToEmail(text);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -45,6 +71,9 @@ const SmtpConfigScreen: React.FC = () => {
           setHost(config.host);
           setPort(String(config.port));
           setUsername(config.username);
+          if (config.hasPassword) {
+            setHasSavedPassword(true);
+          }
           setFromEmail(config.fromEmail);
           setToEmail(config.toEmail);
           setUseSsl(config.useSsl);
@@ -58,6 +87,34 @@ const SmtpConfigScreen: React.FC = () => {
     };
     load();
   }, []);
+
+  const errors = useMemo(() => {
+    const e: Record<string, string | undefined> = {};
+    if (touched.port && port.length > 0 && !isValidPort(port)) {
+      e.port = 'Valid port range: 1–65535';
+    }
+    if (touched.fromEmail && fromEmail.length > 0 && !isValidEmail(fromEmail)) {
+      e.fromEmail = 'Invalid email format';
+    }
+    if (touched.toEmail && toEmail.length > 0 && !isValidEmail(toEmail)) {
+      e.toEmail = 'Invalid email format';
+    }
+    return e;
+  }, [port, fromEmail, toEmail, touched]);
+
+  const hasConnectionFields =
+    host.trim().length > 0 &&
+    port.trim().length > 0 && isValidPort(port) &&
+    username.trim().length > 0 &&
+    (password.length > 0 || hasSavedPassword);
+
+  const hasAllFields =
+    hasConnectionFields &&
+    fromEmail.trim().length > 0 && isValidEmail(fromEmail) &&
+    toEmail.trim().length > 0 && isValidEmail(toEmail);
+
+  const canTest = hasConnectionFields;
+  const canSave = hasAllFields;
 
   const handleSave = async () => {
     setSaving(true);
@@ -81,6 +138,13 @@ const SmtpConfigScreen: React.FC = () => {
   };
 
   const handleTest = async () => {
+    if (!canSave) {
+      setTouched({
+        host: true, port: true, username: true, password: true,
+        fromEmail: true, toEmail: true,
+      });
+      await handleSave();
+    }
     setTesting(true);
     try {
       const success = await SmtpModule.sendTestEmail();
@@ -134,7 +198,7 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalInput
             label="SMTP_HOST"
             value={host}
-            onChangeText={setHost}
+            onChangeText={markTouched('host')}
             placeholder="smtp.example.com"
             keyboardType="url"
           />
@@ -143,16 +207,17 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalInput
             label="SMTP_PORT"
             value={port}
-            onChangeText={setPort}
-            placeholder="587"
+            onChangeText={markTouched('port')}
+            placeholder="465"
             keyboardType="numeric"
+            error={errors.port}
           />
           <View style={styles.fieldSpacer} />
 
           <TerminalInput
             label="USER_IDENTITY"
             value={username}
-            onChangeText={setUsername}
+            onChangeText={markTouched('username')}
             placeholder="usr@domain.tld"
             keyboardType="email-address"
           />
@@ -161,8 +226,8 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalInput
             label="AUTH_TOKEN"
             value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
+            onChangeText={markTouched('password')}
+            placeholder={hasSavedPassword && password.length === 0 ? '(saved)' : '••••••••'}
             secureTextEntry={!showPassword}
             rightIcon={showPassword ? '◉' : '◎'}
             onRightIconPress={() => setShowPassword(prev => !prev)}
@@ -172,18 +237,20 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalInput
             label="FROM_EMAIL"
             value={fromEmail}
-            onChangeText={setFromEmail}
+            onChangeText={markTouched('fromEmail')}
             placeholder="from@domain.tld"
             keyboardType="email-address"
+            error={errors.fromEmail}
           />
           <View style={styles.fieldSpacer} />
 
           <TerminalInput
             label="TO_EMAIL"
             value={toEmail}
-            onChangeText={setToEmail}
+            onChangeText={markTouched('toEmail')}
             placeholder="to@domain.tld"
             keyboardType="email-address"
+            error={errors.toEmail}
           />
         </View>
 
@@ -221,7 +288,7 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalButton
             label="SAVE_CONFIG"
             onPress={handleSave}
-            variant="primary"
+            variant={canSave ? 'primary' : 'disabled'}
             accentColor="green"
             loading={saving}
           />
@@ -229,7 +296,7 @@ const SmtpConfigScreen: React.FC = () => {
           <TerminalButton
             label="TEST_SMTP()"
             onPress={handleTest}
-            variant="secondary"
+            variant={canTest ? 'secondary' : 'disabled'}
             accentColor="cyan"
             loading={testing}
           />
