@@ -332,7 +332,7 @@ const DashboardScreen: React.FC = () => {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.headerTitle}>Relayo.sh</Text>
-            <Text style={styles.headerVersion}>v2.4.1-stable</Text>
+            <Text style={styles.headerVersion}>v1.0.0</Text>
           </View>
         </View>
 
