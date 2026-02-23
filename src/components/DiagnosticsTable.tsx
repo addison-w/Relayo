@@ -1,11 +1,12 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 import type {DiagnosticModule} from '../types';
 import StatusBadge from './StatusBadge';
 
 interface DiagnosticsTableProps {
   modules: DiagnosticModule[];
+  onModulePress?: (moduleId: string) => void;
 }
 
 const statusToBadge = (status: DiagnosticModule['status']) => {
@@ -21,7 +22,7 @@ const statusToBadge = (status: DiagnosticModule['status']) => {
   }
 };
 
-const DiagnosticsTable: React.FC<DiagnosticsTableProps> = ({modules}) => {
+const DiagnosticsTable: React.FC<DiagnosticsTableProps> = ({modules, onModulePress}) => {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -29,25 +30,33 @@ const DiagnosticsTable: React.FC<DiagnosticsTableProps> = ({modules}) => {
         <Text style={[styles.headerCell, styles.statusHeader]}>STATUS</Text>
       </View>
 
-      {modules.map((mod, index) => (
-        <View
-          key={mod.id}
-          style={[
-            styles.row,
-            index < modules.length - 1 && styles.rowBorder,
-          ]}>
-          <View style={styles.moduleInfo}>
-            <View style={styles.moduleNameRow}>
-              <Text style={styles.moduleIcon}>{mod.icon}</Text>
-              <Text style={styles.moduleName}>{mod.name.toUpperCase()}</Text>
+      {modules.map((mod, index) => {
+        const isTappable = mod.status !== 'ready' && onModulePress != null;
+        const Wrapper = isTappable ? TouchableOpacity : View;
+        const wrapperProps = isTappable
+          ? {onPress: () => onModulePress(mod.id), activeOpacity: 0.7}
+          : {};
+        return (
+          <Wrapper
+            key={mod.id}
+            {...wrapperProps}
+            style={[
+              styles.row,
+              index < modules.length - 1 && styles.rowBorder,
+            ]}>
+            <View style={styles.moduleInfo}>
+              <View style={styles.moduleNameRow}>
+                <Text style={styles.moduleIcon}>{mod.icon}</Text>
+                <Text style={styles.moduleName}>{mod.name.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.moduleDescription}>{mod.description}</Text>
             </View>
-            <Text style={styles.moduleDescription}>{mod.description}</Text>
-          </View>
-          <View style={styles.statusCell}>
-            <StatusBadge status={statusToBadge(mod.status)} />
-          </View>
-        </View>
-      ))}
+            <View style={styles.statusCell}>
+              <StatusBadge status={statusToBadge(mod.status)} />
+            </View>
+          </Wrapper>
+        );
+      })}
     </View>
   );
 };
