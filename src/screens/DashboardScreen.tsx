@@ -7,6 +7,9 @@ import {
   Animated,
   Easing,
   TouchableOpacity,
+  PermissionsAndroid,
+  Platform,
+  AppState,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import TerminalCard from '../components/TerminalCard';
@@ -14,24 +17,21 @@ import DiagnosticsTable from '../components/DiagnosticsTable';
 import ScanlineOverlay from '../components/ScanlineOverlay';
 import ServiceModule from '../native/NativeServiceModule';
 import PermissionModule from '../native/NativePermissionModule';
-import type {AppStatus} from '../native/NativeServiceModule';
+import LogModule from '../native/NativeLogModule';
+import type {RelayLog} from '../types';
+import type {PermissionStatus} from '../native/NativePermissionModule';
 import type {DiagnosticModule} from '../types';
 import {colors, fontFamily, fontSize, spacing, borderWidth} from '../theme';
 
 const POLL_INTERVAL = 5000;
 
-const buildDiagnostics = (perms: {
-  RECEIVE_SMS: boolean;
-  READ_SMS: boolean;
-  READ_PHONE_STATE: boolean;
-  POST_NOTIFICATIONS?: boolean;
-}): DiagnosticModule[] => [
+const buildDiagnostics = (perms: PermissionStatus): DiagnosticModule[] => [
   {
     id: 'sms',
     name: 'SMS_ACCESS',
     description: perms.READ_SMS
       ? 'Broadcast receiver bound'
-      : 'Permission not granted',
+      : 'Tap to grant permission',
     icon: '📨',
     status: perms.READ_SMS && perms.RECEIVE_SMS ? 'ready' : 'error',
   },
@@ -40,7 +40,7 @@ const buildDiagnostics = (perms: {
     name: 'PHONE_STATE',
     description: perms.READ_PHONE_STATE
       ? 'Telephony access granted'
-      : 'Permission not granted',
+      : 'Tap to grant permission',
     icon: '📱',
     status: perms.READ_PHONE_STATE ? 'ready' : 'warning',
   },
@@ -50,34 +50,26 @@ const buildDiagnostics = (perms: {
     description:
       perms.POST_NOTIFICATIONS !== false
         ? 'Notification channel active'
-        : 'Permission not granted',
+        : 'Tap to grant permission',
     icon: '🔔',
     status: perms.POST_NOTIFICATIONS !== false ? 'ready' : 'warning',
+  },
+  {
+    id: 'battery',
+    name: 'BATTERY_OPT',
+    description: perms.BATTERY_OPTIMIZED
+      ? 'Unrestricted background'
+      : 'Tap to disable optimization',
+    icon: '🔋',
+    status: perms.BATTERY_OPTIMIZED ? 'ready' : 'warning',
   },
 ];
 
 const DEFAULT_DIAGNOSTICS: DiagnosticModule[] = [
-  {
-    id: 'sms',
-    name: 'SMS_ACCESS',
-    description: 'Checking...',
-    icon: '📨',
-    status: 'unknown',
-  },
-  {
-    id: 'phone',
-    name: 'PHONE_STATE',
-    description: 'Checking...',
-    icon: '📱',
-    status: 'unknown',
-  },
-  {
-    id: 'notify',
-    name: 'NOTIFICATIONS',
-    description: 'Checking...',
-    icon: '🔔',
-    status: 'unknown',
-  },
+  {id: 'sms', name: 'SMS_ACCESS', description: 'Checking...', icon: '📨', status: 'unknown'},
+  {id: 'phone', name: 'PHONE_STATE', description: 'Checking...', icon: '📱', status: 'unknown'},
+  {id: 'notify', name: 'NOTIFICATIONS', description: 'Checking...', icon: '🔔', status: 'unknown'},
+  {id: 'battery', name: 'BATTERY_OPT', description: 'Checking...', icon: '🔋', status: 'unknown'},
 ];
 
 const formatUptime = (startMs: number): string => {
@@ -99,7 +91,7 @@ const DashboardScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const [isActive, setIsActive] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [lastStatus, setLastStatus] = useState<AppStatus | null>(null);
+  const [latestLog, setLatestLog] = useState<RelayLog | null>(null);
   const [outboxCount, setOutboxCount] = useState(0);
   const [diagnostics, setDiagnostics] =
     useState<DiagnosticModule[]>(DEFAULT_DIAGNOSTICS);
@@ -112,13 +104,11 @@ const DashboardScreen: React.FC = () => {
 
   const pollData = useCallback(async () => {
     try {
-      const [running, status, count] = await Promise.all([
+      const [running, count] = await Promise.all([
         ServiceModule.isServiceRunning(),
-        ServiceModule.getLastStatus(),
         ServiceModule.getOutboxCount(),
       ]);
       setIsActive(running);
-      setLastStatus(status);
       setOutboxCount(count);
       if (running && serviceStartTime === null) {
         setServiceStartTime(Date.now());
@@ -145,12 +135,34 @@ const DashboardScreen: React.FC = () => {
     }
   }, []);
 
+  const loadLatestLog = useCallback(async () => {
+    try {
+      const log = await LogModule.getLatestLog();
+      setLatestLog(log);
+    } catch {
+    }
+  }, []);
+
   useEffect(() => {
     pollData();
     loadDiagnostics();
-    const interval = setInterval(pollData, POLL_INTERVAL);
+    loadLatestLog();
+    const interval = setInterval(() => {
+      pollData();
+      loadLatestLog();
+    }, POLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [pollData, loadDiagnostics]);
+  }, [pollData, loadDiagnostics, loadLatestLog]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        loadDiagnostics();
+        loadLatestLog();
+      }
+    });
+    return () => sub.remove();
+  }, [loadDiagnostics, loadLatestLog]);
 
   useEffect(() => {
     if (!serviceStartTime) {
@@ -234,6 +246,60 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
+  const handleDiagnosticPress = async (moduleId: string) => {
+    switch (moduleId) {
+      case 'sms':
+        try {
+          const results = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+            PermissionsAndroid.PERMISSIONS.READ_SMS,
+          ]);
+          if (
+            results[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] !==
+              PermissionsAndroid.RESULTS.GRANTED ||
+            results[PermissionsAndroid.PERMISSIONS.READ_SMS] !==
+              PermissionsAndroid.RESULTS.GRANTED
+          ) {
+            await PermissionModule.openAppSettings();
+          }
+        } catch {
+          await PermissionModule.openAppSettings();
+        }
+        break;
+      case 'phone':
+        try {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+          );
+          if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+            await PermissionModule.openAppSettings();
+          }
+        } catch {
+          await PermissionModule.openAppSettings();
+        }
+        break;
+      case 'notify':
+        if (Number(Platform.Version) < 33) {
+          break;
+        }
+        try {
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          );
+          if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+            await PermissionModule.openAppSettings();
+          }
+        } catch {
+          await PermissionModule.openAppSettings();
+        }
+        break;
+      case 'battery':
+        await PermissionModule.openBatteryOptimizationSettings();
+        break;
+    }
+    await loadDiagnostics();
+  };
+
   const spin = ringRotation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -246,15 +312,16 @@ const DashboardScreen: React.FC = () => {
 
   const statusColor = isActive ? colors.green : colors.textMuted;
 
-  const lastResultLabel =
-    lastStatus?.lastResult === 'success'
+  const lastResultLabel = latestLog
+    ? latestLog.status === 'sent'
       ? 'SEND_SUCCESS'
-      : lastStatus?.lastResult === 'failed'
-        ? 'SEND_FAILED'
+      : 'SEND_FAILED'
         : 'NO_DATA';
-
-  const lastResultColor =
-    lastStatus?.lastResult === 'success' ? colors.green : colors.red;
+  const lastResultColor = latestLog
+    ? latestLog.status === 'sent'
+      ? colors.green
+      : colors.red
+    : colors.textDim;
 
   return (
     <View style={[styles.screen, {paddingTop: insets.top}]}>
@@ -267,9 +334,6 @@ const DashboardScreen: React.FC = () => {
             <Text style={styles.headerTitle}>Relayo.sh</Text>
             <Text style={styles.headerVersion}>v2.4.1-stable</Text>
           </View>
-          <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7}>
-            <Text style={styles.settingsIcon}>⚙</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.heroSection}>
@@ -345,7 +409,7 @@ const DashboardScreen: React.FC = () => {
         </View>
 
         <TerminalCard accentColor="cyan" title="DIAGNOSTICS" subtitle="SYSTEM_MODULE_STATUS">
-          <DiagnosticsTable modules={diagnostics} />
+          <DiagnosticsTable modules={diagnostics} onModulePress={handleDiagnosticPress} />
         </TerminalCard>
 
         <View style={styles.sectionSpacer} />
@@ -357,10 +421,21 @@ const DashboardScreen: React.FC = () => {
               <Text style={styles.logCmd}>timestamp --utc</Text>
             </View>
             <Text style={styles.logOutputGreen}>
-              {lastStatus?.lastAttemptAt
-                ? formatTimestamp(lastStatus.lastAttemptAt)
+              {latestLog
+                ? formatTimestamp(latestLog.relayedAt)
                 : 'N/A'}
             </Text>
+            {latestLog && (
+              <>
+                <View style={[styles.logLine, styles.logLineSpaced]}>
+                  <Text style={styles.logPrompt}>$ </Text>
+                  <Text style={styles.logCmd}>echo $SENDER</Text>
+                </View>
+                <Text style={styles.logOutputGreen}>
+                  {latestLog.senderNumber} → {latestLog.receiverNumber}
+                </Text>
+              </>
+            )}
 
             <View style={[styles.logLine, styles.logLineSpaced]}>
               <Text style={styles.logPrompt}>$ </Text>
@@ -373,20 +448,20 @@ const DashboardScreen: React.FC = () => {
               <Text
                 style={[
                   styles.logSuccess,
-                  {color: lastStatus ? lastResultColor : colors.textDim},
+                  {color: latestLog ? lastResultColor : colors.textDim},
                 ]}>
                 {'>>'} {lastResultLabel}
               </Text>
             </View>
 
-            {lastStatus?.lastErrorShort && (
+            {latestLog?.status === 'failed' && latestLog?.errorMessage && (
               <>
                 <View style={[styles.logLine, styles.logLineSpaced]}>
                   <Text style={styles.logPrompt}>$ </Text>
                   <Text style={styles.logCmd}>cat error.log</Text>
                 </View>
                 <Text style={styles.logOutputError}>
-                  {lastStatus.lastErrorShort}
+                  {latestLog.errorMessage}
                 </Text>
               </>
             )}
@@ -432,20 +507,6 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     marginTop: spacing.xxs,
     letterSpacing: 0.5,
-  },
-  settingsBtn: {
-    width: 36,
-    height: 36,
-    borderWidth: borderWidth.thin,
-    borderColor: colors.border,
-    borderRadius: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsIcon: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.subtitle,
-    color: colors.textDim,
   },
   heroSection: {
     alignItems: 'center',

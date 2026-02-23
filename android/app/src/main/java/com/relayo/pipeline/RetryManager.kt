@@ -1,6 +1,7 @@
 package com.relayo.pipeline
 
 import android.content.Context
+import com.relayo.db.RelayLogEntity
 import com.relayo.db.RelayoDatabase
 import com.relayo.smtp.SmtpConfigStore
 import com.relayo.smtp.SmtpResult
@@ -22,6 +23,7 @@ class RetryManager private constructor(private val context: Context) {
     suspend fun processOutbox() {
         val db = RelayoDatabase.getInstance(context)
         val dao = db.outboxDao()
+        val logDao = db.relayLogDao()
         val smtpStore = SmtpConfigStore(context)
         val config = smtpStore.load() ?: return
         val now = System.currentTimeMillis()
@@ -36,9 +38,20 @@ class RetryManager private constructor(private val context: Context) {
             val body = EmailTemplateBuilder.buildBody(
                 item.senderNumber, item.receiverNumberResolved, item.receivedAt, item.messageBody
             )
+            val attemptTime = System.currentTimeMillis()
             when (val result = SmtpSender.send(config, subject, body)) {
                 is SmtpResult.Success -> {
                     dao.markSent(item.id)
+                    logDao.insert(
+                        RelayLogEntity(
+                            senderNumber = item.senderNumber,
+                            receiverNumber = item.receiverNumberResolved,
+                            messagePreview = item.messageBody.take(100),
+                            receivedAt = item.receivedAt,
+                            relayedAt = attemptTime,
+                            status = "sent"
+                        )
+                    )
                 }
                 is SmtpResult.Failure -> {
                     val nextRetryDelay = nextDelay(item.retryCount)
@@ -48,6 +61,18 @@ class RetryManager private constructor(private val context: Context) {
                         result.errorCode,
                         result.message.take(200),
                         nextRetryAt
+                    )
+                    logDao.insert(
+                        RelayLogEntity(
+                            senderNumber = item.senderNumber,
+                            receiverNumber = item.receiverNumberResolved,
+                            messagePreview = item.messageBody.take(100),
+                            receivedAt = item.receivedAt,
+                            relayedAt = attemptTime,
+                            status = "failed",
+                            errorCode = result.errorCode,
+                            errorMessage = result.message.take(200)
+                        )
                     )
                 }
             }

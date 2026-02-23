@@ -8,6 +8,7 @@ import com.relayo.permission.PermissionModule
 import com.relayo.service.ServiceModule
 import com.relayo.sim.SimModule
 import com.relayo.smtp.SmtpModule
+import com.relayo.log.LogModule
 
 class RelayoPackage : ReactPackage {
 
@@ -16,7 +17,8 @@ class RelayoPackage : ReactPackage {
             SmtpModule(reactContext),
             SimModule(reactContext),
             ServiceModule(reactContext),
-            PermissionModule(reactContext)
+            PermissionModule(reactContext),
+            LogModule(reactContext)
         )
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =

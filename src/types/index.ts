@@ -44,3 +44,16 @@ export type PermissionStep = {
   status: 'pending' | 'granted' | 'denied';
   accentColor: 'green' | 'cyan' | 'amber' | 'text';
 };
+
+
+export type RelayLog = {
+  id: number;
+  senderNumber: string;
+  receiverNumber: string;
+  messagePreview: string;
+  receivedAt: number;
+  relayedAt: number;
+  status: 'sent' | 'failed';
+  errorCode: string | null;
+  errorMessage: string | null;
+};

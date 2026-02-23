@@ -2,6 +2,7 @@ package com.relayo.pipeline
 
 import android.content.Context
 import com.relayo.db.OutboxEntity
+import com.relayo.db.RelayLogEntity
 import com.relayo.db.RelayoDatabase
 import com.relayo.sim.SimResolver
 import com.relayo.smtp.SmtpConfigStore
@@ -42,13 +43,45 @@ object SmsPipeline {
         val subject = EmailTemplateBuilder.buildSubject(senderNumber, receiverNumber)
         val body = EmailTemplateBuilder.buildBody(senderNumber, receiverNumber, receivedAt, messageBody)
 
+        val db = RelayoDatabase.getInstance(context)
         val smtpConfig = SmtpConfigStore(context).load()
+
         if (smtpConfig != null) {
             val result = SmtpSender.send(smtpConfig, subject, body)
-            if (result is SmtpResult.Success) return
+            val now = System.currentTimeMillis()
+
+            when (result) {
+                is SmtpResult.Success -> {
+                    db.relayLogDao().insert(
+                        RelayLogEntity(
+                            senderNumber = senderNumber,
+                            receiverNumber = receiverNumber,
+                            messagePreview = messageBody.take(100),
+                            receivedAt = receivedAt,
+                            relayedAt = now,
+                            status = "sent"
+                        )
+                    )
+                    return
+                }
+                is SmtpResult.Failure -> {
+                    db.relayLogDao().insert(
+                        RelayLogEntity(
+                            senderNumber = senderNumber,
+                            receiverNumber = receiverNumber,
+                            messagePreview = messageBody.take(100),
+                            receivedAt = receivedAt,
+                            relayedAt = now,
+                            status = "failed",
+                            errorCode = result.errorCode,
+                            errorMessage = result.message.take(200)
+                        )
+                    )
+                }
+            }
         }
 
-        val db = RelayoDatabase.getInstance(context)
+        // Still queue to outbox for retry
         val entity = OutboxEntity(
             fingerprint = fingerprint,
             senderNumber = senderNumber,
